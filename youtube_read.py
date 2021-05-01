@@ -12,6 +12,9 @@ import random
 from apiclient.discovery import build
 import urllib.request
 from tkinter import ttk
+import webbrowser
+import vlc
+import pafy
 
 root = tkinter.Tk()
 WIDTH=900
@@ -63,7 +66,7 @@ def get_api():
     return youtube
 
 def show_channels(event):
-    global youtube,name_var,right_frame,top_frame
+    global youtube,name_var,right_frame,top_frame,search_result_caption
     search_key = name_var.get()
     #print(search_key)
     if youtube is None:
@@ -87,7 +90,7 @@ def show_channels(event):
     column=0
     for title_key in channel_info.keys():
         cid = channel_id_list[title_key]
-        c = Channel_list_icon(right_frame,title_key,channel_info[title_key],cid,row,column,search_result_caption,subcribers_count)#,back_but_label)
+        c = Channel_list_icon(right_frame,title_key,channel_info[title_key],cid,row,column,search_result_caption,subcribers_count)
         column = column+1
         if column==3:
             row=row+1
@@ -95,7 +98,7 @@ def show_channels(event):
         
     #for a in top_frame.winfo_children():
     #    a.destroy()
-    #search_result_caption = Label(top_frame,text='Search Results: '+str(len(channel_info))+' Channels',font=('Berlin Sans FB',28),bg='#fe0000',fg="#fcfcfa")
+    search_result_caption = Label(top_frame,text='Search Results: '+str(len(channel_info))+' Channels',font=('Berlin Sans FB',28),bg='#fe0000',fg="#fcfcfa")
     #search_result_caption.pack(side='left',padx=20,pady=10)
 
 
@@ -124,6 +127,8 @@ class Video_item:
     def __init__(self,frame,videotitle,thumbnail_url,like,dislike,views,video_id):
         self.frame = frame
         self.item_frame = Frame(self.frame,width=600,height=120,bg='#fff')
+        self.item_frame.bind('<Enter>',self.changetextcolor)
+        self.item_frame.bind('<Leave>',self.changebackcolor)
         self.title = videotitle
         self.thumbnail_url = thumbnail_url
         self.like = like
@@ -132,9 +137,16 @@ class Video_item:
         self.vidid = video_id
         self.download_user_image(self.thumbnail_url)
         self.thumb_image = ImageTk.PhotoImage(Image.open(f'thumb_{self.vidid}.jpg').resize((100,80)))  # PIL solution
-        self.photo_label = Label(self.item_frame,width=100, height=80,image=self.thumb_image,bg='#fff')  #relief=RAISED 
+        self.photo_label = Label(self.item_frame,width=100, height=80,image=self.thumb_image,bg='#fff',cursor='hand2')  #relief=RAISED 
         self.photo_label.image = self.thumb_image
-        self.title_lbl = Label(self.item_frame,text=self.title,font=text_font,bg='#fff')
+        self.photo_label.bind('<Button-1>',self.play_video)
+        #self.photo_label.bind('<Enter>',self.changetextcolor)
+        #self.photo_label.bind('<Leave>',self.changebackcolor)        
+        
+        self.title_lbl = Label(self.item_frame,text=self.title,font=("Verdana",16),bg='#fff',cursor='hand2')
+        self.title_lbl.bind('<Button-1>',self.play_video)
+        #self.title_lbl.bind('<Enter>',self.changetextcolor)
+        #self.title_lbl.bind('<Leave>',self.changebackcolor)
         
         self.like_img = ImageTk.PhotoImage(Image.open('like.png').resize((15,15)))  # PIL solution
         self.like_photo_label = Label(self.item_frame,width=15, height=15,image=self.like_img,bg='#fff')  #relief=RAISED 
@@ -152,6 +164,56 @@ class Video_item:
         self.view_count = Label(self.item_frame,text=self.views,font=('Times New Roman',8),bg='#fff')                         
 
         self.display()
+    
+    def changetextcolor(self,event):
+        self.title_lbl.config(font=("Verdana",16))        
+        self.title_lbl.config(bg='#fe0000')
+        self.item_frame.config(bg='#fe0000')         
+        self.photo_label.config(bg='#fe0000')
+        self.like_photo_label.config(bg='#fe0000')
+        self.like_count.config(bg='#fe0000')
+        self.dislike_photo_label.config(bg='#fe0000')
+        self.dislike_count.config(bg='#fe0000')
+        self.view_photo_label.config(bg='#fe0000')
+        self.view_count.config(bg='#fe0000')
+                               
+        self.title_lbl.config(fg='#fff')
+        self.like_count.config(fg='#fff')
+        self.dislike_count.config(fg='#fff')
+        self.view_count.config(fg='#fff')
+                              
+    def changebackcolor(self,event):
+        self.title_lbl.config(font=text_font)        
+        self.title_lbl.config(bg='#fff')
+        self.item_frame.config(bg='#fff')         
+        self.photo_label.config(bg='#fff')
+        self.like_photo_label.config(bg='#fff')
+        self.like_count.config(bg='#fff')
+        self.dislike_photo_label.config(bg='#fff')
+        self.dislike_count.config(bg='#fff')
+        self.view_photo_label.config(bg='#fff')
+        self.view_count.config(bg='#fff')
+                               
+        self.title_lbl.config(fg='#000')                               
+        self.like_count.config(fg='#000')
+        self.dislike_count.config(fg='#000')
+        self.view_count.config(fg='#000')
+        
+    def play_video(self,event):
+        url = f"https://www.youtube.com/watch?v={self.vidid}"
+  
+        # creating pafy object of the video
+        video = pafy.new(url)
+          
+        # getting best stream
+        best = video.getbest()
+          
+        # creating vlc media player object
+        media = vlc.MediaPlayer(best.url)
+          
+        # start playing video
+        media.play()
+    
     def download_user_image(self,URL):
         with urllib.request.urlopen(URL) as url:
             with open(f'thumb_{self.vidid}.jpg','wb') as f:
@@ -169,10 +231,10 @@ class Video_item:
         self.view_count.grid(row=1,column=6,padx=5,pady=5,sticky='w')
 
 class Channel_list_icon:
-    def __init__(self,rightframe,title,image_url,cid,row,column,search_result_caption,subcribers_count):#,back_but_label):
+    def __init__(self,rightframe,title,image_url,cid,row,column,search_result_caption,subcribers_count):
         self.search_result_caption = search_result_caption
         self.subcribers_count = subcribers_count
-        self.back_but_label = back_but_label
+        #self.back_but_label = back_but_label
         self.rf = rightframe
         self.row = row
         self.column = column
@@ -209,11 +271,10 @@ class Channel_list_icon:
         self.title.config(bg='#fff')
         self.title.config(fg='#000')
      
-    def main_screen(self,event):
-        for a in right_frame.winfo_children():
-            a.destroy()
-        
-       
+    #def main_screen(self,event):
+    #    for a in right_frame.winfo_children():
+    #        a.destroy()
+           
     def open_channel(self,event):
         for a in right_frame.winfo_children():
             a.destroy()
@@ -265,7 +326,11 @@ class Channel_list_icon:
         self.photo_label.grid(row=0,column=0,padx=30,pady=10)
         self.title.grid(row=1,column=0,pady=10)
         
-        
+
+def open_youtube(event):
+    webbrowser.open("https://www.youtube.com/")
+    #urllib.request.urlopen("https://www.youtube.com/")
+
 left_frame = Frame(root,width=200,height=600,bg='#fe0000')
 left_frame.pack(side='left')
 left_frame.pack_propagate(0)
@@ -275,9 +340,9 @@ left_frame.pack_propagate(0)
 #back_but_label.pack(padx=30,pady=(30,0))
                         
 photo = ImageTk.PhotoImage(Image.open("YouTube-Logo.jpg").resize((180,100)))  # PIL solution
-label = Label(left_frame,width=180, height=100,image=photo,bg='#fe0000')  #relief=RAISED 
+label = Label(left_frame,width=180, height=100,image=photo,bg='#fe0000',cursor='hand2')  #relief=RAISED 
 label.pack(pady=(50,0))
-
+label.bind('<Button-1>',open_youtube)
 
 channel_name_lbl = Label(left_frame,text='Channel Name',font=text_font,bg='#fe0000',fg="#fcfcfa")
 channel_name_lbl.pack()
