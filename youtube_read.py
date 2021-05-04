@@ -15,6 +15,7 @@ from tkinter import ttk
 import webbrowser
 import vlc
 import pafy
+import json
 
 root = tkinter.Tk()
 WIDTH=900
@@ -65,6 +66,45 @@ def get_api():
     youtube = build('youtube', 'v3', developerKey=api_key)
     return youtube
 
+def show_videos(event):
+    global rightframe,search_result_caption
+    print('text: ',event.widget.get())
+    search_text = event.widget.get()
+    
+    for a in right_frame.winfo_children():
+        a.destroy()
+         
+    search_result_caption.config(text='Search Key: '+search_text)   
+
+    api_key = "AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8"  
+    #https://www.googleapis.com/youtube/v3/search?part=snippet&q=avengers&maxResults=20&key=AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8
+    url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&q={search_text}&maxResults=20&key={api_key}'
+    #req = youtube.search().list(part='snippet',q=search_text,
+    #                        type='videos',maxResults=20)
+    res = urllib.request.urlopen(url)
+    data = json.loads(res.read())
+    videos = data["items"]
+    
+    scroll_f = ScrollableFrame(right_frame)
+    scroll_f.pack(expand=True,fill='both')
+    
+    for video in videos:
+        vid_id = video["id"]["videoId"]
+        vid_title = video["snippet"]["title"]
+        vid_image_url = video["snippet"]["thumbnails"]["default"]["url"]
+        vid_url = f'https://www.googleapis.com/youtube/v3/videos?part=statistics&id=SLD9xzJ4oeU&key={api_key}'
+        vid_res = urllib.request.urlopen(vid_url)
+        vid_stats = json.loads(vid_res.read())
+        vid_likes = vid_stats["items"][0]["statistics"]["likeCount"]
+        vid_dislikes = vid_stats["items"][0]["statistics"]["dislikeCount"]
+        vid_views = vid_stats["items"][0]["statistics"]["viewCount"]
+        
+        f1 = Frame(scroll_f.scrollable_frame,width=WIDTH-200,height=130,bg='#fff')
+        f1.pack_propagate(0)
+        f1.pack(expand=True,fill='both',padx=20,pady=10)
+        
+        Video_item(f1,vid_title,vid_image_url,vid_likes,vid_dislikes,vid_views,vid_id)
+        
 def show_channels(event):
     global youtube,name_var,right_frame,top_frame,search_result_caption
     search_key = name_var.get()
@@ -143,7 +183,7 @@ class Video_item:
         #self.photo_label.bind('<Enter>',self.changetextcolor)
         #self.photo_label.bind('<Leave>',self.changebackcolor)        
         
-        self.title_lbl = Label(self.item_frame,text=self.title,font=("Verdana",16),bg='#fff',cursor='hand2')
+        self.title_lbl = Label(self.item_frame,text=self.title,font=("Verdana",12),bg='#fff',cursor='hand2')
         self.title_lbl.bind('<Button-1>',self.play_video)
         #self.title_lbl.bind('<Enter>',self.changetextcolor)
         #self.title_lbl.bind('<Leave>',self.changebackcolor)
@@ -166,7 +206,7 @@ class Video_item:
         self.display()
     
     def changetextcolor(self,event):
-        self.title_lbl.config(font=("Verdana",16))        
+        self.title_lbl.config(font=("Verdana"))        
         self.title_lbl.config(bg='#fe0000')
         self.item_frame.config(bg='#fe0000')         
         self.photo_label.config(bg='#fe0000')
@@ -183,7 +223,7 @@ class Video_item:
         self.view_count.config(fg='#fff')
                               
     def changebackcolor(self,event):
-        self.title_lbl.config(font=text_font)        
+        self.title_lbl.config(font=("Verdana"))        
         self.title_lbl.config(bg='#fff')
         self.item_frame.config(bg='#fff')         
         self.photo_label.config(bg='#fff')
@@ -351,9 +391,10 @@ name_input_box = Entry(left_frame,width=30,textvariable=name_var)
 name_input_box.bind('<Return>',show_channels)
 name_input_box.pack()    
 
-channel_id_lbl = Label(left_frame,text='Channel Id',font=text_font,bg='#fe0000',fg="#fcfcfa")
+channel_id_lbl = Label(left_frame,text='Search Videos',font=text_font,bg='#fe0000',fg="#fcfcfa")
 channel_id_lbl.pack(pady=(20,0))
 id_input_box = Entry(left_frame,width=30)
+id_input_box.bind('<Return>',show_videos)
 id_input_box.pack()    
 
 top_frame = Frame(root,width=WIDTH-200,height=80,bg='#fe0000')
