@@ -114,7 +114,7 @@ def show_videos(event):
     api_key = "AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8"  
     #https://www.googleapis.com/youtube/v3/search?part=snippet&q=avengers&maxResults=20&key=AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8
     #https://www.googleapis.com/youtube/v3/videos?part=statistics&id=SLD9xzJ4oeU&key=AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8
-    url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&q={search_text}&maxResults=20&key={api_key}'
+    url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&q={search_text}&maxResults=10&key={api_key}'
     #req = youtube.search().list(part='snippet',q=search_text,
     #                        type='videos',maxResults=20)
     res = urllib.request.urlopen(url)
@@ -226,6 +226,7 @@ class Video_item:
         self.l_img = None
         self.d_img = None
         self.a = self.check_for_like_dislike()
+        #print(self.a)
         if self.a == 'like':
             self.l_img = 'like_done.png'
             self.d_img = 'dislike.png'
@@ -285,6 +286,13 @@ class Video_item:
             self.like_photo_label.config(image=self.like_img)
             self.like_photo_label.image = self.like_img  
             youtube.videos().rate(rating='like', id=self.vidid).execute()
+            
+        vid_stats = youtube.videos().list(part="snippet,statistics",id=self.vidid).execute()
+        self.like = vid_stats["items"][0]["statistics"]["likeCount"]
+        self.like_count.config(text=self.like)
+        self.dislike = vid_stats["items"][0]["statistics"]["dislikeCount"]
+        self.dislike_count.config(text=self.dislike)
+
 
     def dislike_video(self,event):
         if credentials.expired:
@@ -303,11 +311,20 @@ class Video_item:
             self.dislike_img = ImageTk.PhotoImage(Image.open('dislike.png').resize((15,15)))  # PIL solution
             self.dislike_photo_label.config(image=self.dislike_img)
             self.dislike_photo_label.image = self.dislike_img  
+            youtube.videos().rate(rating='none', id=self.vidid).execute()
         elif liked_disliked == 'none':
             self.dislike_img = ImageTk.PhotoImage(Image.open('dislike_done.png').resize((15,15)))  # PIL solution
             self.dislike_photo_label.config(image=self.dislike_img)
             self.dislike_photo_label.image = self.dislike_img  
             youtube.videos().rate(rating='dislike', id=self.vidid).execute()
+        
+        vid_stats = youtube.videos().list(part='snippet,statistics',id=self.vidid).execute()
+        #print(vid_stats)
+        self.dislike = vid_stats["items"][0]["statistics"]["dislikeCount"]
+        #print(self.dislike)
+        self.dislike_count.config(text=self.dislike)
+        self.like = vid_stats["items"][0]["statistics"]["likeCount"]
+        self.like_count.config(text=self.like)
     
     def changetextcolor(self,event):
         self.title_lbl.config(font=("Verdana"))        
