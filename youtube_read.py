@@ -26,7 +26,7 @@ WIDTH=900
 HEIGHT=600
 root.geometry(f"{WIDTH}x{HEIGHT}")
 root.resizable(0,0)
-root.title("Library Management System")
+root.title("Youtube Video and Channel Search")
 
 main_menu_font = font.Font(family='Times New Roman', size=10, weight='bold')
 
@@ -223,14 +223,26 @@ class Video_item:
         self.title_lbl.bind('<Button-1>',self.play_video)
         #self.title_lbl.bind('<Enter>',self.changetextcolor)
         #self.title_lbl.bind('<Leave>',self.changebackcolor)
+        self.l_img = None
+        self.d_img = None
+        self.a = self.check_for_like_dislike()
+        if self.a == 'like':
+            self.l_img = 'like_done.png'
+            self.d_img = 'dislike.png'
+        elif self.a == 'dislike':
+            self.d_img = 'dislike_done.png'
+            self.l_img = 'like.png'
+        else:
+            self.l_img = 'like.png'
+            self.d_img = 'dislike.png'
         
-        self.like_img = ImageTk.PhotoImage(Image.open('like.png').resize((15,15)))  # PIL solution
+        self.like_img = ImageTk.PhotoImage(Image.open(self.l_img).resize((15,15)))  # PIL solution
         self.like_photo_label = Label(self.item_frame,width=15, height=15,image=self.like_img,bg='#fff',cursor='hand2')  #relief=RAISED 
         self.like_photo_label.image = self.like_img  
         self.like_photo_label.bind('<Button-1>',self.like_video)
         self.like_count = Label(self.item_frame,text=self.like,font=('Times New Roman',8),bg='#fff')                         
                                         
-        self.dislike_img = ImageTk.PhotoImage(Image.open('dislike.png').resize((15,15)))  # PIL solution
+        self.dislike_img = ImageTk.PhotoImage(Image.open(self.d_img).resize((15,15)))  # PIL solution
         self.dislike_photo_label = Label(self.item_frame,width=15, height=15,image=self.dislike_img,bg='#fff',cursor='hand2')  #relief=RAISED 
         self.dislike_photo_label.image = self.dislike_img  
         self.dislike_photo_label.bind('<Button-1>',self.dislike_video)
@@ -243,6 +255,13 @@ class Video_item:
 
         self.display()
    
+    def check_for_like_dislike(self):
+        if not credentials or credentials.expired:
+            get_credentials()
+        res = youtube.videos().getRating(id=self.vidid).execute()
+        liked_disliked = res['items'][0]['rating']
+        return liked_disliked
+        
     def like_video(self,event):
         if not credentials or credentials.expired:
             get_credentials()
@@ -288,7 +307,7 @@ class Video_item:
             self.dislike_img = ImageTk.PhotoImage(Image.open('dislike_done.png').resize((15,15)))  # PIL solution
             self.dislike_photo_label.config(image=self.dislike_img)
             self.dislike_photo_label.image = self.dislike_img  
-            youtube.videos().rate(rating='like', id=self.vidid).execute()
+            youtube.videos().rate(rating='dislike', id=self.vidid).execute()
     
     def changetextcolor(self,event):
         self.title_lbl.config(font=("Verdana"))        
