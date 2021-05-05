@@ -16,6 +16,10 @@ import webbrowser
 import vlc
 import pafy
 import json
+from google_auth_oauthlib.flow import InstalledAppFlow
+import pickle,os
+from google.auth.transport.requests import Request
+
 
 root = tkinter.Tk()
 WIDTH=900
@@ -66,6 +70,37 @@ def get_api():
     youtube = build('youtube', 'v3', developerKey=api_key)
     return youtube
 
+credentials = None
+youtube = None
+def get_credentials():
+    global credentials,youtube
+    CLIENT_SECRET_FILE = 'client_secret.json'
+    SCOPES = ['https://www.googleapis.com/auth/youtube','https://www.googleapis.com/auth/youtube.force-ssl']
+
+    credentials = None
+    if os.path.exists("token.pickle"):
+        print("Loading credentials from file...")
+        with open("token.pickle","rb") as token:
+            credentials = pickle.load(token)
+    
+    # if there are no valid credentials available, then either refresh the token or log in
+    if not credentials or not credentials.valid:
+        if credentials and credentials.expired and credentials.refresh_token:
+            print("refereshing access token")
+            credentials.refresh(Request())
+        else:
+            print("Fetching new tokens")
+            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
+            credentials = flow.run_local_server(port=8080,prompt='consent',authorization_prompt_message='')
+            
+            with open('token.pickle','wb') as f:
+                print("saving credentials for future use")
+                pickle.dump(credentials,f)
+                
+    youtube = build('youtube', 'v3', credentials=credentials)
+
+#get_credentials()
+
 def show_videos(event):
     global rightframe,search_result_caption
     print('text: ',event.widget.get())
@@ -78,6 +113,7 @@ def show_videos(event):
 
     api_key = "AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8"  
     #https://www.googleapis.com/youtube/v3/search?part=snippet&q=avengers&maxResults=20&key=AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8
+    #https://www.googleapis.com/youtube/v3/videos?part=statistics&id=SLD9xzJ4oeU&key=AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8
     url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&q={search_text}&maxResults=20&key={api_key}'
     #req = youtube.search().list(part='snippet',q=search_text,
     #                        type='videos',maxResults=20)
@@ -92,7 +128,7 @@ def show_videos(event):
         vid_id = video["id"]["videoId"]
         vid_title = video["snippet"]["title"]
         vid_image_url = video["snippet"]["thumbnails"]["default"]["url"]
-        vid_url = f'https://www.googleapis.com/youtube/v3/videos?part=statistics&id=SLD9xzJ4oeU&key={api_key}'
+        vid_url = f'https://www.googleapis.com/youtube/v3/videos?part=statistics&id={vid_id}&key={api_key}'
         vid_res = urllib.request.urlopen(vid_url)
         vid_stats = json.loads(vid_res.read())
         vid_likes = vid_stats["items"][0]["statistics"]["likeCount"]
@@ -189,13 +225,15 @@ class Video_item:
         #self.title_lbl.bind('<Leave>',self.changebackcolor)
         
         self.like_img = ImageTk.PhotoImage(Image.open('like.png').resize((15,15)))  # PIL solution
-        self.like_photo_label = Label(self.item_frame,width=15, height=15,image=self.like_img,bg='#fff')  #relief=RAISED 
+        self.like_photo_label = Label(self.item_frame,width=15, height=15,image=self.like_img,bg='#fff',cursor='hand2')  #relief=RAISED 
         self.like_photo_label.image = self.like_img  
+        self.like_photo_label.bind('<Button-1>',self.like_video)
         self.like_count = Label(self.item_frame,text=self.like,font=('Times New Roman',8),bg='#fff')                         
-        
+                                        
         self.dislike_img = ImageTk.PhotoImage(Image.open('dislike.png').resize((15,15)))  # PIL solution
-        self.dislike_photo_label = Label(self.item_frame,width=15, height=15,image=self.dislike_img,bg='#fff')  #relief=RAISED 
+        self.dislike_photo_label = Label(self.item_frame,width=15, height=15,image=self.dislike_img,bg='#fff',cursor='hand2')  #relief=RAISED 
         self.dislike_photo_label.image = self.dislike_img  
+        self.dislike_photo_label.bind('<Button-1>',self.dislike_video)
         self.dislike_count = Label(self.item_frame,text=self.dislike,font=('Times New Roman',8),bg='#fff')
         
         self.view_img = ImageTk.PhotoImage(Image.open('view.png').resize((15,15)))
@@ -204,6 +242,53 @@ class Video_item:
         self.view_count = Label(self.item_frame,text=self.views,font=('Times New Roman',8),bg='#fff')                         
 
         self.display()
+   
+    def like_video(self,event):
+        if not credentials or credentials.expired:
+            get_credentials()
+        res = youtube.videos().getRating(id=self.vidid).execute()
+        liked_disliked = res['items'][0]['rating']
+        if liked_disliked == 'like':
+            self.like_img = ImageTk.PhotoImage(Image.open('like.png').resize((15,15)))  # PIL solution
+            self.like_photo_label.config(image=self.like_img)
+            self.like_photo_label.image = self.like_img  
+            youtube.videos().rate(rating='none', id=self.vidid).execute()
+        elif liked_disliked == 'dislike':
+            self.like_img = ImageTk.PhotoImage(Image.open('like_done.png').resize((15,15)))  # PIL solution
+            self.like_photo_label.config(image=self.like_img)
+            self.like_photo_label.image = self.like_img              
+            self.dislike_img = ImageTk.PhotoImage(Image.open('dislike.png').resize((15,15)))  # PIL solution
+            self.dislike_photo_label.config(image=self.dislike_img)
+            self.dislike_photo_label.image = self.dislike_img            
+            youtube.videos().rate(rating='like', id=self.vidid).execute()
+        elif liked_disliked == 'none':
+            self.like_img = ImageTk.PhotoImage(Image.open('like_done.png').resize((15,15)))  # PIL solution
+            self.like_photo_label.config(image=self.like_img)
+            self.like_photo_label.image = self.like_img  
+            youtube.videos().rate(rating='like', id=self.vidid).execute()
+
+    def dislike_video(self,event):
+        if credentials.expired:
+            get_credentials()
+        res = youtube.videos().getRating(id=self.vidid).execute()
+        liked_disliked = res['items'][0]['rating']
+        if liked_disliked == 'like':
+            self.like_img = ImageTk.PhotoImage(Image.open('like.png').resize((15,15)))  # PIL solution
+            self.like_photo_label.config(image=self.like_img)
+            self.like_photo_label.image = self.like_img              
+            self.dislike_img = ImageTk.PhotoImage(Image.open('dislike_done.png').resize((15,15)))  # PIL solution
+            self.dislike_photo_label.config(image=self.dislike_img)
+            self.dislike_photo_label.image = self.dislike_img            
+            youtube.videos().rate(rating='dislike', id=self.vidid).execute()
+        elif liked_disliked == 'dislike':
+            self.dislike_img = ImageTk.PhotoImage(Image.open('dislike.png').resize((15,15)))  # PIL solution
+            self.dislike_photo_label.config(image=self.dislike_img)
+            self.dislike_photo_label.image = self.dislike_img  
+        elif liked_disliked == 'none':
+            self.dislike_img = ImageTk.PhotoImage(Image.open('dislike_done.png').resize((15,15)))  # PIL solution
+            self.dislike_photo_label.config(image=self.dislike_img)
+            self.dislike_photo_label.image = self.dislike_img  
+            youtube.videos().rate(rating='like', id=self.vidid).execute()
     
     def changetextcolor(self,event):
         self.title_lbl.config(font=("Verdana"))        
