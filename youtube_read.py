@@ -66,7 +66,7 @@ youtube = None
 text_font = font.Font(family='Berlin Sans FB', size=16)
 def get_api():
     global youtube
-    api_key = "AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8"
+    api_key = "YOUR API KEY"
     youtube = build('youtube', 'v3', developerKey=api_key)
     return youtube
 
@@ -111,7 +111,7 @@ def show_videos(event):
          
     search_result_caption.config(text='Search Key: '+search_text)   
 
-    api_key = "AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8"  
+    api_key = "YOUR API KEY"  
     #https://www.googleapis.com/youtube/v3/search?part=snippet&q=avengers&maxResults=20&key=AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8
     #https://www.googleapis.com/youtube/v3/videos?part=statistics&id=SLD9xzJ4oeU&key=AIzaSyA210Ah9_sNyGhK5c6QfKpbf8J0AD1n_U8
     url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&q={search_text}&maxResults=10&key={api_key}'
